@@ -17,36 +17,48 @@ const (
 	BLOCK_SIZE = 4
 )
 
+type netError struct {
+	realError error
+}
+
+func (nerr *netError) Error() string {
+	return fmt.Sprintf("NetworkError: %s", nerr.realError)
+}
+
+func (nerr *netError) Unwrap() error {
+	return nerr.realError
+}
+
 func query(host string, req interface{}, dst interface{}) error {
 	payload, err := json.Marshal(req)
 	if err != nil {
-		return err
+		return &netError{err}
 	}
 	//log.Println("DEBUG:", string(payload))
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", host, DEFAULT_PORT), time.Duration(DEFAULT_TIMEOUT) * time.Second)
 	if err != nil {
-		return err
+		return &netError{err}
 	}
 	defer conn.Close()
 	conn.SetWriteDeadline(time.Now().Add(time.Duration(DEFAULT_TIMEOUT) * time.Second))
 	err = binary.Write(conn, binary.BigEndian, int32(len(payload)))
 	if err != nil {
-		return err
+		return &netError{err}
 	}
 	_, err = conn.Write(encrypt(payload))
 	if err != nil {
-		return err
+		return &netError{err}
 	}
 	conn.SetReadDeadline(time.Now().Add(time.Duration(DEFAULT_TIMEOUT) * time.Second))
 	var respLen int32
 	err = binary.Read(conn, binary.BigEndian, &respLen)
 	if err != nil {
-		return err
+		return &netError{err}
 	}
 	cipher := make([]byte, int(respLen))
 	_, err = io.ReadFull(conn, cipher)
 	if err != nil {
-		return err
+		return &netError{err}
 	}
 	plain := decrypt(cipher)
 	return json.Unmarshal(plain, dst)
