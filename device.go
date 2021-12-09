@@ -142,6 +142,7 @@ type LatLon struct {
 }
 
 type SmartDevice interface {
+	IP() string
 	Update() error
 	GetSysInfo() *SysInfo
 	GetCurrentConsumption() (float64, error)
@@ -198,6 +199,10 @@ func NewDevice(addr string) (SmartDevice, error) {
 		return nil, err
 	}
 	return dev.AsConcrete(), nil
+}
+
+func (dev *BaseDevice) IP() string {
+	return dev.Addr
 }
 
 func (dev *BaseDevice) AsConcrete() SmartDevice {
