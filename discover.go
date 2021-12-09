@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net"
-	//"strings"
+	"strings"
 	"time"
 )
 
@@ -41,11 +41,9 @@ func Discover(timeout time.Duration) ([]SmartDevice, error) {
 			l.SetReadDeadline(time.Now().Add(timeout))
 			n, src, err := l.ReadFromUDP(b)
 			if err != nil {
-					log.Println(err)
-				/*
 				if !strings.Contains(err.Error(), "i/o timeout") {
+					log.Println(err)
 				}
-				*/
 				return
 			}
 			plain := decrypt(b[:n])
