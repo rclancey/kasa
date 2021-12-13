@@ -1,6 +1,7 @@
 package kasa
 
 import (
+	"errors"
 	"log"
 )
 
@@ -42,6 +43,26 @@ func (bulb *SmartBulb) TurnOn() error {
 func (bulb *SmartBulb) TurnOff() error {
 	var res interface{}
 	err := bulb.Query(&res, "smartlife.iot.smartbulb.lightingservice", "transition_light_state", map[string]interface{}{"on_off": 0, "ignore_default": 1})
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	log.Println(res)
+	return nil
+}
+
+func (bulb *SmartBulb) SetBrightness(b int) error {
+	if !bulb.IsDimmable() {
+		return errors.New("device is not dimmable")
+	}
+	if b <= 0 {
+		return bulb.TurnOff()
+	}
+	if b > 100 {
+		b = 100
+	}
+	var res interface{}
+	err := bulb.Query(&res, "smartlife.iot.dimmer", "set_brightness", map[string]interface{}{"brightness": b})
 	if err != nil {
 		log.Println(err)
 		return err

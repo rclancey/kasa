@@ -184,6 +184,11 @@ type Switch interface {
 	TurnOff() error
 }
 
+type Dimmer interface {
+	Switch
+	SetBrightness(int) error
+}
+
 type BaseDevice struct {
 	Addr string `json:"addr"`
 	Info *Query `json:"info"`
