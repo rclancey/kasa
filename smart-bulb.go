@@ -51,6 +51,14 @@ func (bulb *SmartBulb) TurnOff() error {
 	return nil
 }
 
+func (bulb *SmartBulb) IsDimmable() bool {
+	sysinfo := bulb.GetSysInfo()
+	if sysinfo == nil {
+		return false
+	}
+	return sysinfo.IsDimmable > 0
+}
+
 func (bulb *SmartBulb) SetBrightness(b int) error {
 	if !bulb.IsDimmable() {
 		return errors.New("device is not dimmable")
