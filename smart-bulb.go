@@ -70,7 +70,7 @@ func (bulb *SmartBulb) SetBrightness(b int) error {
 		b = 100
 	}
 	var res interface{}
-	err := bulb.Query(&res, "smartlife.iot.dimmer", "set_brightness", map[string]interface{}{"brightness": b})
+	err := bulb.Query(&res, "smartlife.iot.smartbulb.lightingservice", "transition_light_state", map[string]interface{}{"on_off": 1, "ignore_default": 1, "brightness": b})
 	if err != nil {
 		log.Println(err)
 		return err
