@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func Discover(timeout time.Duration) ([]SmartDevice, error) {
+func DiscoverStream(retry time.Duration, quitch chan bool) (chan SmartDevice, error) {
 	query := map[string]interface{}{
 		"system": map[string]interface{}{
 			"get_sysinfo": nil,
@@ -31,20 +31,25 @@ func Discover(timeout time.Duration) ([]SmartDevice, error) {
 		log.Println(err)
 		return nil, err
 	}
+	log.Println("listening on", l.LocalAddr().String())
 	maxSize := 8192
 	l.SetReadBuffer(maxSize)
 	ch := make(chan SmartDevice, 10)
+	quit := false
 	go func() {
 		defer close(ch)
 		for {
+			if quit {
+				return
+			}
 			b := make([]byte, maxSize)
-			l.SetReadDeadline(time.Now().Add(timeout))
+			l.SetReadDeadline(time.Now().Add(retry))
 			n, src, err := l.ReadFromUDP(b)
 			if err != nil {
 				if !strings.Contains(err.Error(), "i/o timeout") {
 					log.Println(err)
 				}
-				return
+				continue
 			}
 			plain := decrypt(b[:n])
 			info := &Query{}
@@ -59,17 +64,59 @@ func Discover(timeout time.Duration) ([]SmartDevice, error) {
 		}
 	}()
 
-	_, err = l.WriteTo(encrypt(plain), sendaddr)
+	go func() {
+		defer func() {
+			quit = true
+		}()
+		requery := func() error {
+			_, err = l.WriteTo(encrypt(plain), sendaddr)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+		err := requery()
+		if err != nil {
+			log.Println("error querying:", err)
+			return
+		}
+		ticker := time.NewTicker(retry)
+		for {
+			select {
+			case <-quitch:
+				return
+			case <-ticker.C:
+				err = requery()
+				if err != nil {
+					log.Println("error querying:", err)
+					return
+				}
+			}
+		}
+	}()
+	return ch, nil
+}
+
+func Discover(timeout time.Duration) ([]SmartDevice, error) {
+	quitch := make(chan bool, 2)
+	ch, err := DiscoverStream(timeout, quitch)
 	if err != nil {
 		return nil, err
 	}
 	devices := []SmartDevice{}
+	timer := time.NewTimer(timeout)
 	for {
-		dev, ok := <-ch
-		if !ok {
-			break
+		select {
+		case dev, ok := <-ch:
+			if !ok {
+				quitch <- true
+				return devices, nil
+			}
+			devices = append(devices, dev)
+		case <-timer.C:
+			quitch <- true
+			return devices, nil
 		}
-		devices = append(devices, dev)
 	}
 	return devices, nil
 }
