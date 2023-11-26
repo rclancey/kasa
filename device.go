@@ -220,10 +220,6 @@ func (dev *BaseDevice) AsConcrete() SmartDevice {
 		xdev := &SmartStrip{BaseDevice: dev}
 		dev.self = xdev
 		return xdev
-	case DeviceTypeStripSocket:
-		xdev := &SmartStripSocket{BaseDevice: dev}
-		dev.self = xdev
-		return xdev
 	case DeviceTypePlug:
 		xdev := &SmartPlug{BaseDevice: dev}
 		dev.self = xdev
@@ -245,9 +241,9 @@ func (dev *BaseDevice) makeQuery(target, cmd string, arg interface{}, childIds .
 		return map[string]interface{}{
 			"context": map[string]interface{}{
 				"child_ids": childIds,
-				target: map[string]interface{}{
-					cmd: arg,
-				},
+			},
+			target: map[string]interface{}{
+				cmd: arg,
 			},
 		}
 	}
