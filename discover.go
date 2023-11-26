@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+var Debug = false
+
 func DiscoverStream(retry time.Duration, quitch chan bool) (chan SmartDevice, error) {
 	query := map[string]interface{}{
 		"system": map[string]interface{}{
@@ -52,6 +54,9 @@ func DiscoverStream(retry time.Duration, quitch chan bool) (chan SmartDevice, er
 				continue
 			}
 			plain := decrypt(b[:n])
+			if Debug {
+				log.Println(string(plain))
+			}
 			info := &Query{}
 			err = json.Unmarshal(plain, &info)
 			if err != nil {

@@ -12,6 +12,7 @@ import (
 )
 
 func main() {
+	kasa.Debug = true
 	retry := 10 * time.Second
 	quitch := make(chan bool, 2)
 	ch, err := kasa.DiscoverStream(retry, quitch)
@@ -22,6 +23,7 @@ func main() {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
 	go func() {
 		defer wg.Done()
 		for {

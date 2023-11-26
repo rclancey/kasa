@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	//"log"
+	"log"
 	"net"
 	"time"
 )
@@ -45,6 +45,9 @@ func query(host string, req interface{}, dst interface{}) error {
 	if err != nil {
 		return &netError{err}
 	}
+	if Debug {
+		log.Println(string(payload))
+	}
 	_, err = conn.Write(encrypt(payload))
 	if err != nil {
 		return &netError{err}
@@ -61,6 +64,9 @@ func query(host string, req interface{}, dst interface{}) error {
 		return &netError{err}
 	}
 	plain := decrypt(cipher)
+	if Debug {
+		log.Println(string(plain))
+	}
 	return json.Unmarshal(plain, dst)
 }
 
