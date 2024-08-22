@@ -1,16 +1,18 @@
 package kasa
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
 var Debug = false
 
-func DiscoverStream(retry time.Duration, quitch chan bool) (chan SmartDevice, error) {
+func DiscoverStream(ctx context.Context, retry time.Duration) (chan SmartDevice, error) {
 	query := map[string]interface{}{
 		"system": map[string]interface{}{
 			"get_sysinfo": nil,
@@ -37,21 +39,24 @@ func DiscoverStream(retry time.Duration, quitch chan bool) (chan SmartDevice, er
 	maxSize := 8192
 	l.SetReadBuffer(maxSize)
 	ch := make(chan SmartDevice, 10)
-	quit := false
+	quit := &atomic.Bool{}
 	go func() {
 		defer close(ch)
 		for {
-			if quit {
+			if quit.Load() {
 				return
 			}
 			b := make([]byte, maxSize)
-			l.SetReadDeadline(time.Now().Add(retry))
+			l.SetReadDeadline(time.Now().Add(time.Second))
 			n, src, err := l.ReadFromUDP(b)
 			if err != nil {
 				if !strings.Contains(err.Error(), "i/o timeout") {
 					log.Println(err)
 				}
 				continue
+			}
+			if quit.Load() {
+				return
 			}
 			plain := decrypt(b[:n])
 			if Debug {
@@ -70,9 +75,7 @@ func DiscoverStream(retry time.Duration, quitch chan bool) (chan SmartDevice, er
 	}()
 
 	go func() {
-		defer func() {
-			quit = true
-		}()
+		defer quit.Store(true)
 		requery := func() error {
 			_, err = l.WriteTo(encrypt(plain), sendaddr)
 			if err != nil {
@@ -88,7 +91,7 @@ func DiscoverStream(retry time.Duration, quitch chan bool) (chan SmartDevice, er
 		ticker := time.NewTicker(retry)
 		for {
 			select {
-			case <-quitch:
+			case <-ctx.Done():
 				return
 			case <-ticker.C:
 				err = requery()
@@ -103,8 +106,9 @@ func DiscoverStream(retry time.Duration, quitch chan bool) (chan SmartDevice, er
 }
 
 func Discover(timeout time.Duration) ([]SmartDevice, error) {
+	ctx, _ := context.WithTimeout(context.Background(), timeout)
 	quitch := make(chan bool, 2)
-	ch, err := DiscoverStream(timeout, quitch)
+	ch, err := DiscoverStream(ctx, timeout)
 	if err != nil {
 		return nil, err
 	}

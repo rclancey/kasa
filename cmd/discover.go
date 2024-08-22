@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"os"
@@ -14,8 +15,8 @@ import (
 func main() {
 	kasa.Debug = true
 	retry := 10 * time.Second
-	quitch := make(chan bool, 2)
-	ch, err := kasa.DiscoverStream(retry, quitch)
+	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
+	ch, err := kasa.DiscoverStream(ctx, retry)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -28,7 +29,7 @@ func main() {
 		defer wg.Done()
 		for {
 			select {
-			case <-quitch:
+			case <-ctx.Done():
 				return
 			case dev, ok := <-ch:
 				if !ok {
@@ -42,11 +43,6 @@ func main() {
 			}
 		}
 	}()
-	sigch := make(chan os.Signal, 1)
-	signal.Notify(sigch, os.Interrupt)
-	<-sigch
-	log.Println("shutting down")
-	quitch <- true
-	quitch <- true
 	wg.Wait()
+	log.Println("shutting down")
 }
