@@ -79,6 +79,60 @@ func (bulb *SmartBulb) SetBrightness(b int) error {
 	return nil
 }
 
+func (bulb *SmartBulb) IsVariableColorTemp() bool {
+	sysinfo := bulb.GetSysInfo()
+	if sysinfo == nil {
+		return false
+	}
+	return sysinfo.IsVariableColorTemp > 0
+}
+
+func (bulb *SmartBulb) SetColorTemp(temp int) error {
+	if !bulb.IsVariableColorTemp() {
+		return errors.New("color not controllable")
+	}
+	params := map[string]any{
+		"color_temp": max(2500, min(6500, temp)),
+		"hue": 0,
+		"saturation": 0,
+	}
+	var res any
+	err := bulb.Query(&res, "smartlife.iot.smartbulb.lightingservice", "transition_light_state", params)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	log.Println(res)
+	return nil
+}
+
+func (bulb *SmartBulb) IsColor() bool {
+	sysinfo := bulb.GetSysInfo()
+	if sysinfo == nil {
+		return false
+	}
+	return sysinfo.IsColor > 0
+}
+
+func (bulb *SmartBulb) SetColor(hue, saturation int) error {
+	if !bulb.IsColor() {
+		return errors.New("color not controllable")
+	}
+	params := map[string]any{
+		"color_temp": 0,
+		"hue": max(0, min(360, hue)),
+		"saturation": max(0, min(100, saturation)),
+	}
+	var res any
+	err := bulb.Query(&res, "smartlife.iot.smartbulb.lightingservice", "transition_light_state", params)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	log.Println(res)
+	return nil
+}
+
 func (bulb *SmartBulb) SetLED(state bool) error {
 	return nil
 }
